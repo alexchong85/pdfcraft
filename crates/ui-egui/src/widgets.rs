@@ -137,7 +137,11 @@ pub fn pill_button(ui: &mut egui::Ui, label: &str, primary: bool) -> Response {
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label));
     let press = theme::Press::track(ui, &resp);
     let (fill, stroke, text) = if primary {
-        (press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)), Stroke::NONE, Color32::WHITE)
+        (
+            press.fill(t.accent, t.accent_text, t.accent.lerp_to_gamma(Color32::BLACK, 0.22)),
+            Stroke::NONE,
+            if t.dark() { Color32::from_rgb(0x15, 0x15, 0x15) } else { Color32::WHITE },
+        )
     } else {
         (press.fill(t.card, t.hover, t.pressed), Stroke::new(1.0, t.border), t.text)
     };
@@ -499,34 +503,23 @@ pub fn progress_notice(app: &PdfCraftApp, ctx: &egui::Context) -> bool {
     cancel
 }
 
-/// The ArtCraft wordmark (Storyteller's brand, docs/brand/; not open source), sized to `height`.
-pub fn artcraft_logo(ui: &mut egui::Ui, height: f32) -> Response {
-    let dark = ui.visuals().dark_mode;
-    let (uri, bytes): (&str, &'static [u8]) = if dark {
-        ("bytes://artcraft-logo-white.svg", include_bytes!("../../../docs/brand/artcraft-logo-white.svg"))
-    } else {
-        ("bytes://artcraft-logo.svg", include_bytes!("../../../docs/brand/artcraft-logo.svg"))
-    };
-    ui.add(egui::Image::from_bytes(uri, bytes).max_height(height).alt_text("ArtCraft"))
+/// Contributor-original window outline, drawn directly without a bundled brand asset.
+pub fn alex_os_mark(ui: &mut egui::Ui, size: f32) -> Response {
+    let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+    let color = Tokens::get(ui.ctx()).accent;
+    ui.painter().rect_stroke(rect.shrink(2.0), CornerRadius::same(3), Stroke::new(1.5, color), egui::StrokeKind::Inside);
+    ui.painter().line_segment([rect.center_top() + vec2(0.0, 2.0), rect.center_bottom() - vec2(0.0, 2.0)], Stroke::new(1.0, color));
+    response
 }
 
-/// The ArtCraft mark (brand blue, works on light and dark), `size` points square.
-pub fn artcraft_mark(ui: &mut egui::Ui, size: f32) -> Response {
-    ui.add(
-        egui::Image::from_bytes("bytes://artcraft-mark.svg", include_bytes!("../../../docs/brand/artcraft-mark.svg"))
-            .fit_to_exact_size(vec2(size, size))
-            .alt_text("ArtCraft"),
-    )
-}
-
-/// Buttons for every community link (`pdfcraft_engine::links`), Discord first and prominent.
+/// Buttons for the website and source links (`pdfcraft_engine::links`).
 /// Returns the registry command of the one clicked.
 pub fn community_links(ui: &mut egui::Ui) -> Option<&'static str> {
     let mut clicked = None;
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(8.0, 8.0);
-        for (i, l) in pdfcraft_engine::links::LINKS.iter().enumerate() {
-            let resp = if i == 0 { icon_pill(ui, l.icon, tl!("Join our Discord"), true) } else { icon_pill(ui, l.icon, tl!(l.label), false) };
+        for l in pdfcraft_engine::links::LINKS {
+            let resp = icon_pill(ui, l.icon, l.label, false);
             if resp.on_hover_text(l.url).clicked() {
                 clicked = Some(l.command);
             }

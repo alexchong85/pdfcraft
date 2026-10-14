@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 /// The app's name in ArtCraft URLs (`getartcraft.com/apps/{APP}`, `github.com/storytold/{APP}`).
 pub const APP: &str = "pdfcraft";
 
-pub const DISCORD: &str = "https://discord.gg/artcraft";
-pub const WEBSITE: &str = "https://getartcraft.com";
-pub const APP_PAGE: &str = "https://getartcraft.com/apps/pdfcraft";
-pub const GITHUB: &str = "https://github.com/storytold/pdfcraft";
+pub const DISCORD: &str = "https://suzuneyozora.com/tools/pdf";
+pub const WEBSITE: &str = "https://suzuneyozora.com";
+pub const APP_PAGE: &str = "https://suzuneyozora.com/tools/pdf";
+pub const GITHUB: &str = "https://github.com/alexchong85/pdfcraft";
 
 /// A link and the registry command that opens it.
 #[derive(Clone, Copy, Debug)]
@@ -24,13 +24,15 @@ pub struct Link {
 
 /// In the order they are shown. Discord comes first: it is where people get help fastest.
 pub const LINKS: &[Link] = &[
-    Link { command: "help.discord", label: "Join the ArtCraft Discord", url: DISCORD, icon: "messages-square" },
-    Link { command: "help.app_page", label: "PdfCraft web page", url: APP_PAGE, icon: "globe" },
-    Link { command: "help.github", label: "PdfCraft on GitHub", url: GITHUB, icon: "code-xml" },
-    Link { command: "help.website", label: "ArtCraft website", url: WEBSITE, icon: "external-link" },
+    Link { command: "help.app_page", label: "PDF 工具", url: APP_PAGE, icon: "file-text" },
+    Link { command: "help.github", label: "原始碼", url: GITHUB, icon: "code-xml" },
+    Link { command: "help.website", label: "Alex OS", url: WEBSITE, icon: "external-link" },
 ];
 
 pub fn for_command(id: &str) -> Option<&'static Link> {
+    if id == "help.discord" {
+        return LINKS.iter().find(|l| l.command == "help.app_page");
+    }
     LINKS.iter().find(|l| l.command == id)
 }
 
@@ -521,9 +523,9 @@ mod tests {
     }
 
     #[test]
-    fn urls_follow_the_artcraft_scheme() {
-        assert_eq!(super::APP_PAGE, format!("{}/apps/{}", super::WEBSITE, super::APP));
-        assert_eq!(super::GITHUB, format!("https://github.com/storytold/{}", super::APP));
+    fn urls_follow_the_alex_os_scheme() {
+        assert_eq!(super::APP_PAGE, format!("{}/tools/pdf", super::WEBSITE));
+        assert_eq!(super::GITHUB, format!("https://github.com/alexchong85/{}", super::APP));
         for l in super::LINKS {
             assert!(l.url.starts_with("https://"), "{}", l.url);
             assert!(crate::commands::command(l.command).is_some(), "{} is a registered command", l.command);

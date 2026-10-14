@@ -1,14 +1,11 @@
 <p align="center">
-  <a href="https://getartcraft.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/brand/artcraft-logo-white.svg">
-      <img alt="ArtCraft" src="docs/brand/artcraft-logo.svg" width="200">
-    </picture>
-  </a>
+  <a href="https://suzuneyozora.com/tools/pdf">Alex OS / PDF · 白間 / 夜間</a>
 </p>
 
 
-<h1 align="center">PdfCraft</h1>
+<h1 align="center">Alex OS PDF — PdfCraft fork</h1>
+
+This fork customizes the v0.8.0 Web UI for Alex OS. See [custom build and theme bridge](docs/alex-os.md). The upstream documentation below describes PdfCraft; releases and capability claims are upstream references.
 
 <p align="center">
   <b>The PDF workbench; an open-source, clean-room reimplementation of Adobe Acrobat, rebuilt in pure Rust.</b><br>
@@ -559,8 +556,7 @@ Forks and modified versions must remove them.
 <sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. PdfCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
-  <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
-  <sub>Made by the <a href="https://getartcraft.com/">ArtCraft</a> team and community.</sub>
+  <sub>Based on PdfCraft by the ArtCraft team and community. Customized for Alex OS.</sub>
 </p>
 
 Tools and Inspector panels can be dragged into tab groups, split beside the PDF, or floated within the app window. Read and full-screen modes keep their existing focused document view. Drag a panel header to a target edge or another header. Its context menu offers Float panel, Move to group, and Close panel. Existing panel toggles reopen panels at their saved location; Reset Panel Layout restores the app layout. Floating panels remain inside the current app window.

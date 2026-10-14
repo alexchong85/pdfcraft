@@ -14,7 +14,7 @@ fn card_lift(ui: &egui::Ui, t: &Tokens, rect: Rect, press: theme::Press) {
     let lift = press.hover * (1.0 - press.down);
     if lift > 0.04 {
         let shadow = egui::Shadow { offset: [0, 3], blur: (14.0 * lift) as u8, spread: 0, color: t.page_shadow.gamma_multiply(0.85 * lift) };
-        ui.painter().add(shadow.as_shape(rect, CornerRadius::same(10)));
+        ui.painter().add(shadow.as_shape(rect, CornerRadius::same(8)));
     }
 }
 
@@ -22,7 +22,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         egui::Frame::NONE.inner_margin(egui::Margin { left: 36, right: 36, top: 28, bottom: 28 }).show(ui, |ui| {
-            ui.label(egui::RichText::new(tl!("Welcome to PdfCraft")).font(theme::semibold(24.0)));
+            ui.label(egui::RichText::new("Alex OS / PDF").font(theme::semibold(24.0)));
             ui.label(
                 egui::RichText::new(tl!("An open-source PDF workbench — local, private, and scriptable."))
                     .color(t.text_muted)
@@ -32,15 +32,15 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             egui::Frame::NONE
                 .fill(t.card)
                 .stroke(Stroke::new(1.0, t.border))
-                .corner_radius(CornerRadius::same(12))
+                .corner_radius(CornerRadius::same(8))
                 .inner_margin(egui::Margin::same(14))
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.horizontal(|ui| {
-                        widgets::artcraft_mark(ui, 28.0);
+                        widgets::alex_os_mark(ui, 28.0);
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(tl!("Join the ArtCraft community")).font(theme::semibold(15.0)));
-                            ui.label(egui::RichText::new(tl!("Get help, share feedback and follow development on Discord.")).color(t.text_muted));
+                            ui.label(egui::RichText::new("白間 / 夜間").font(theme::semibold(15.0)));
+                            ui.label(egui::RichText::new("整理文件，留白思考。").color(t.text_muted));
                         });
                     });
                     ui.add_space(8.0);
@@ -53,7 +53,7 @@ pub fn show(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
             egui::Frame::NONE
                 .fill(t.card)
                 .stroke(Stroke::new(1.0, t.border))
-                .corner_radius(CornerRadius::same(12))
+                .corner_radius(CornerRadius::same(8))
                 .inner_margin(egui::Margin::same(18))
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());

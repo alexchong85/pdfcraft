@@ -1,4 +1,9 @@
 PdfCraft
+Alex OS web customization by alexchong85, based on PdfCraft v0.8.0.
+Traditional Chinese interface fallback: LXGW WenKai TC Regular v1.522,
+Copyright 2022-2026 The LXGW WenKai Project Authors, SIL Open Font License 1.1.
+Source: https://github.com/lxgw/LxgwWenkaiTC/releases/tag/v1.522
+The font license is distributed alongside the custom web build as OFL-LXGW-WenKai-TC.txt.
 Copyright (c) 2026 ArtCraft Team and the PdfCraft contributors.
 Licensed under the MIT License or the Apache License, Version 2.0, at your option
 (LICENSE-MIT, LICENSE-APACHE).

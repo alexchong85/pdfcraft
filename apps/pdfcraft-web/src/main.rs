@@ -27,6 +27,12 @@ fn main() {
                     if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string("printcraft"))) {
                         app.restore(&json);
                     }
+                    if app.language == "auto" {
+                        app.language = "zh-hant".into();
+                    }
+                    if let Some(preference) = host_theme(query_param("theme").as_deref()) {
+                        app.set_theme_preference(preference);
+                    }
                     // `?file=<url>` opens a PDF from a URL (same-origin or CORS-enabled).
                     if let Some(url) = query_param("file") {
                         let inbox = app.startup_inbox.clone();
@@ -66,9 +72,10 @@ fn main() {
                         {
                             app.comment_prefs.author = author.chars().take(200).collect();
                         }
-                        bridge.listen(app.startup_inbox.clone(), cc.egui_ctx.clone());
+                        bridge.listen(app.startup_inbox.clone(), app.host_theme_inbox.clone(), cc.egui_ctx.clone());
                         app.host_save = Some(bridge.save_fn());
                         app.host_dirty = Some(bridge.dirty_fn());
+                        app.host_theme_changed = Some(bridge.theme_fn());
                         bridge.post_ready();
                     }
                     Ok(Box::new(app))
@@ -104,6 +111,16 @@ fn warn_before_unload(unsaved: std::sync::Arc<std::sync::atomic::AtomicBool>) {
 fn query_param(key: &str) -> Option<String> {
     let search = web_sys::window()?.location().search().ok()?;
     web_sys::UrlSearchParams::new_with_str(&search).ok()?.get(key)
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn host_theme(value: Option<&str>) -> Option<pdfcraft_ui_egui::theme::ThemePreference> {
+    use pdfcraft_ui_egui::theme::ThemePreference;
+    match value {
+        Some("shiro") => Some(ThemePreference::Light),
+        Some("yakan") => Some(ThemePreference::Dark),
+        _ => None,
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -176,7 +193,12 @@ mod host {
         }
 
         /// Hear `pdfcraft:open` from the parent and queue the file like a `?file=` download.
-        pub fn listen(&self, inbox: pdfcraft_ui_egui::Inbox, ctx: egui::Context) {
+        pub fn listen(
+            &self,
+            inbox: pdfcraft_ui_egui::Inbox,
+            theme: std::sync::Arc<std::sync::Mutex<Option<pdfcraft_ui_egui::theme::ThemePreference>>>,
+            ctx: egui::Context,
+        ) {
             let parent = self.parent.clone();
             let origin = self.origin.clone();
             let on_message = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |event: web_sys::MessageEvent| {
@@ -184,6 +206,15 @@ mod host {
                     return;
                 }
                 let data = event.data();
+                if string(&data, "type").as_deref() == Some("pdfcraft:theme") {
+                    if let Some(preference) = super::host_theme(string(&data, "theme").as_deref()) {
+                        if let Ok(mut pending) = theme.lock() {
+                            *pending = Some(preference);
+                        }
+                        ctx.request_repaint();
+                    }
+                    return;
+                }
                 if string(&data, "type").as_deref() != Some("pdfcraft:open") {
                     return;
                 }
@@ -230,6 +261,19 @@ mod host {
                 }
             })
         }
+
+        pub fn theme_fn(&self) -> Box<dyn Fn(pdfcraft_ui_egui::theme::ThemeKind)> {
+            let bridge = self.clone();
+            Box::new(move |kind| {
+                let value = match kind {
+                    pdfcraft_ui_egui::theme::ThemeKind::Light => "shiro",
+                    pdfcraft_ui_egui::theme::ThemeKind::Dark => "yakan",
+                };
+                if let Some(m) = message(&[("type", "pdfcraft:theme-changed".into()), ("theme", value.into())]) {
+                    let _ = bridge.post(&m, None);
+                }
+            })
+        }
     }
 
     fn message(fields: &[(&str, JsValue)]) -> Option<js_sys::Object> {
@@ -248,4 +292,17 @@ mod host {
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     eprintln!("pdfcraft-web targets wasm32: run `trunk serve` or `trunk build --release` in apps/pdfcraft-web");
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn host_theme_accepts_only_alex_os_theme_names() {
+        use pdfcraft_ui_egui::theme::ThemePreference;
+        assert_eq!(super::host_theme(Some("shiro")), Some(ThemePreference::Light));
+        assert_eq!(super::host_theme(Some("yakan")), Some(ThemePreference::Dark));
+        for invalid in [None, Some(""), Some("dark"), Some("yakan<script>")] {
+            assert_eq!(super::host_theme(invalid), None);
+        }
+    }
 }

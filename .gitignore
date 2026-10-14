@@ -1,6 +1,7 @@
 *~
 plan/
 /target
+/target-checks
 /dist
 /corpus
 /log

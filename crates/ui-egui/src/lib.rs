@@ -508,6 +508,10 @@ pub struct PdfCraftApp {
     /// Resolved colours, including the current OS theme when following the system.
     pub theme: ThemeKind,
     pub theme_preference: ThemePreference,
+    /// Theme updates from a same-origin embedding host, consumed between frames.
+    pub host_theme_inbox: std::sync::Arc<std::sync::Mutex<Option<ThemePreference>>>,
+    /// Report explicit theme changes to the embedding host.
+    pub host_theme_changed: Option<Box<dyn Fn(ThemeKind)>>,
     /// The reading-colours preference (Preferences ▸ Reading colours): applied to every open
     /// document, and documents open with it (Acrobat's Replace Document Colors).
     pub reading_colors: pdfcraft_render::ReadingColors,
@@ -881,6 +885,8 @@ impl PdfCraftApp {
             comment_prefs: Default::default(),
             theme: ThemeKind::Light,
             theme_preference: ThemePreference::Light,
+            host_theme_inbox: std::sync::Arc::default(),
+            host_theme_changed: None,
             reading_colors: Default::default(),
             #[cfg(target_os = "linux")]
             desktop_theme: None,
@@ -1900,12 +1906,18 @@ impl PdfCraftApp {
     }
 
     pub fn set_theme_preference(&mut self, preference: ThemePreference) {
+        let previous = self.theme;
         self.theme_preference = preference;
         if let Some(ctx) = self.ctx.clone() {
             self.sync_theme(&ctx);
             theme::apply(&ctx, self.theme);
         } else {
             self.theme = preference.resolve(None, ThemeKind::Light);
+        }
+        if previous != self.theme
+            && let Some(report) = &self.host_theme_changed
+        {
+            report(self.theme);
         }
     }
 
@@ -2762,6 +2774,10 @@ impl eframe::App for PdfCraftApp {
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ctx = Some(ctx.clone());
+        let host_theme = self.host_theme_inbox.lock().ok().and_then(|mut pending| pending.take());
+        if let Some(preference) = host_theme {
+            self.set_theme_preference(preference);
+        }
         self.dialog_epoch();
         // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.
         let lang = i18n::Lang::from_pref(&self.language);
