@@ -754,6 +754,9 @@ pub struct PdfCraftApp {
     export_status: Option<export_ui::ExportStatus>,
     /// The saved Fill & Sign signature and initials (drawn or typed).
     pub signature: Option<fill_sign::SavedSig>,
+    /// Additional saved signatures, excluding the currently selected signature (ten total).
+    pub signature_library: Vec<fill_sign::SavedSig>,
+    pub(crate) signature_library_previews: Vec<Option<(fill_sign::SavedSig, egui::TextureHandle)>>,
     pub initials: Option<fill_sign::SavedSig>,
     /// The Create signature / initials dialog, and its typed preview.
     pub signature_draft: fill_sign::SigDraft,
@@ -1025,6 +1028,8 @@ impl PdfCraftApp {
             export_draft: Default::default(),
             export_status: None,
             signature: None,
+            signature_library: Vec::new(),
+            signature_library_previews: Vec::new(),
             initials: None,
             signature_draft: Default::default(),
             signature_preview: None,
@@ -2108,7 +2113,7 @@ impl PdfCraftApp {
     /// Serialize the user's persistent state (recent files, theme). Local only.
     pub fn persist(&self) -> String {
         let trusted: Vec<String> = self.session.trusted_certificates().iter().map(pdfcraft_engine::sign::x509::to_pem).collect();
-        serde_json::json!({
+        let mut state = serde_json::json!({
             "docking": self.docking,
             "docking_left_open": self.left_open,
             "docking_right": self.right,
@@ -2167,8 +2172,22 @@ impl PdfCraftApp {
             "combine_zoom": self.combine_zoom,
             "comments_panel_closed": self.comments_panel_closed,
             "right_panel_closed": self.right_panel_closed,
-        })
-        .to_string()
+        });
+        state["signature_library"] = serde_json::json!(self.signature_library);
+        state.to_string()
+    }
+
+    /// Save signature changes immediately, including before a browser refresh.
+    pub(crate) fn persist_signature_changes(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let saved = web_sys::window()
+                .and_then(|w| w.local_storage().ok().flatten())
+                .is_some_and(|storage| storage.set_item("pdfcraft", &self.persist()).is_ok());
+            if !saved {
+                self.notify("無法保存簽名：瀏覽器儲存空間不足或已停用，重新整理後可能遺失。請減少圖片大小或刪除不用的簽名。");
+            }
+        }
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2307,6 +2326,14 @@ impl PdfCraftApp {
         if let Ok(i) = serde_json::from_value::<fill_sign::SavedSig>(v["initials"].clone()) {
             self.initials = Some(i);
         }
+        self.signature_library = v["signature_library"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .take(9)
+            .filter_map(|s| serde_json::from_value::<fill_sign::SavedSig>(s.clone()).ok())
+            .filter(|s| Some(s) != self.signature.as_ref())
+            .collect();
         // An unreadable choice (a damaged image) falls back to the name.
         self.sign_graphic = serde_json::from_value(v["sign_graphic"].clone()).unwrap_or_default();
         if let Ok(ids) = serde_json::from_value::<Vec<DigitalIdEntry>>(v["digital_ids"].clone()) {

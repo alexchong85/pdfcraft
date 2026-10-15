@@ -565,8 +565,14 @@ impl PdfCraftApp {
                     &[("tool", &crate::i18n::in_sentence(tl!(tool.label())))],
                 );
             }
-            "sign.fill.signature.remove" => self.signature = None,
-            "sign.fill.initials.remove" => self.initials = None,
+            "sign.fill.signature.remove" => {
+                self.signature = self.signature_library.pop();
+                self.persist_signature_changes();
+            }
+            "sign.fill.initials.remove" => {
+                self.initials = None;
+                self.persist_signature_changes();
+            }
             "sign.fill.signature.change" | "sign.fill.initials.change" => {
                 let initials = id == "sign.fill.initials.change";
                 let saved = if initials { self.initials.as_ref() } else { self.signature.as_ref() };

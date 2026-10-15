@@ -857,11 +857,21 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
                         app.initials = d.saved();
                         crate::fill_sign::FillTool::Initials
                     } else {
+                        if !d.editing && app.signature.is_some() && app.signature_library.len() >= 9 {
+                            close = true;
+                            return;
+                        }
+                        if !d.editing
+                            && let Some(previous) = app.signature.take()
+                        {
+                            app.signature_library.push(previous);
+                        }
                         app.signature = d.saved();
                         crate::fill_sign::FillTool::Signature
                     };
                     app.quick_tool = crate::QuickTool::Fill(tool);
                     app.toast = None;
+                    app.persist_signature_changes();
                 }
                 close = apply || cancel;
                 return;

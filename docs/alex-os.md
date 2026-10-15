@@ -25,3 +25,7 @@ LXGW WenKai TC | Regular | fonts/alex-os/LXGWWenKaiTC-Regular.ttf | Hans,Hant | 
 6. Distribute the HTML, generated JS/WASM, required license notices and `OFL-LXGW-WenKai-TC.txt`. Keep a manifest of the source commit and generated asset hashes in the website.
 
 The added fallback is for the interface. This customization does not change the PDF engine's text-writing font selection or claim to fix Chinese text appearances in PDFs.
+
+## Multiple browser signatures
+
+The selected signature remains in the legacy setting; up to nine additional signatures live in `signature_library`. Selecting a card swaps it with the current signature. Creating a signature preserves the previous one, editing replaces only the current one, and removing it promotes another saved signature. Initials retain their existing independent slot. Old settings remain readable; restore reads at most nine additional entries. Browser signature changes save immediately to the existing local-only settings key and report unavailable/full storage. The website account does not receive the signature library.

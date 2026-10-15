@@ -1491,3 +1491,56 @@ fn photos_and_images_dropped_on_the_signature_pad_are_imported_not_opened() {
     assert_eq!(h.state().views.len(), tabs, "nothing opened behind the dialog");
     std::fs::remove_file(photo).unwrap();
 }
+
+#[test]
+fn signature_library_roundtrip_cap_and_legacy() {
+    let mut app = PdfCraftApp::new();
+    app.signature = Some(SavedSig::Typed("Current".into()));
+    app.signature_library = (0..9).map(|i| SavedSig::Typed(format!("Signature {i}"))).collect();
+    let mut restored = PdfCraftApp::new();
+    restored.restore(&app.persist());
+    assert_eq!(restored.signature, app.signature);
+    assert_eq!(restored.signature_library, app.signature_library);
+    restored.execute("sign.fill.signature.remove");
+    assert_eq!(restored.signature_library.len(), 8);
+    assert_eq!(restored.signature, Some(SavedSig::Typed("Signature 8".into())));
+    let mut settings: serde_json::Value = serde_json::from_str(&app.persist()).unwrap();
+    settings["signature_library"] = serde_json::json!((0..25).map(|i| SavedSig::Typed(format!("Extra {i}"))).collect::<Vec<_>>());
+    restored.restore(&settings.to_string());
+    assert_eq!(restored.signature_library.len(), 9);
+    restored.restore(r#"{"signature_text":"Legacy"}"#);
+    assert_eq!(restored.signature, Some(SavedSig::Typed("Legacy".into())));
+    assert!(restored.signature_library.is_empty());
+}
+
+#[test]
+fn signature_library_add_select_and_cancel() {
+    let mut h = harness();
+    h.state_mut().signature = Some(SavedSig::Typed("Ada Lovelace".into()));
+    h.state_mut().left = pdfcraft_ui_egui::LeftPanel::Tool("fill_sign");
+    h.state_mut().left_open = true;
+    h.run_steps(3);
+    h.get_by_label("＋ 新增簽名").click();
+    h.run_steps(2);
+    h.state_mut().signature_draft.text = "Grace Hopper".into();
+    h.get_by_label("Apply").click();
+    h.run_steps(3);
+    assert_eq!(h.state().signature, Some(SavedSig::Typed("Grace Hopper".into())));
+    assert_eq!(h.state().signature_library, vec![SavedSig::Typed("Ada Lovelace".into())]);
+    h.get_by_label("選用簽名 2").click();
+    h.run_steps(3);
+    assert_eq!(h.state().signature, Some(SavedSig::Typed("Ada Lovelace".into())));
+    assert_eq!(h.state().signature_library, vec![SavedSig::Typed("Grace Hopper".into())]);
+    h.get_by_label("＋ 新增簽名").click();
+    h.run_steps(2);
+    h.get_by_label("Cancel").click();
+    h.run_steps(2);
+    assert_eq!(h.state().signature_library.len(), 1);
+    h.get_by_label("刪除此簽名").click();
+    h.run_steps(2);
+    assert!(h.state().signature_library.is_empty());
+    assert_eq!(h.state().signature, Some(SavedSig::Typed("Ada Lovelace".into())));
+    let mut restored = PdfCraftApp::new();
+    restored.restore(&h.state().persist());
+    assert!(restored.signature_library.is_empty());
+}

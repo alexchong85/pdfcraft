@@ -549,6 +549,56 @@ pub(crate) fn signature_entries(ui: &mut egui::Ui, app: &mut crate::PdfCraftApp,
         });
         ui.add_space(4.0);
     }
+    let mut selected = None;
+    let mut removed = None;
+    app.signature_library_previews.resize_with(app.signature_library.len(), || None);
+    for (index, saved) in app.signature_library.iter().enumerate() {
+        ui.push_id(("signature-library", index), |ui| {
+            ui.horizontal(|ui| {
+                let (rect, response) = ui.allocate_exact_size(vec2((ui.available_width() - 34.0).max(140.0), 52.0), Sense::click());
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("選用簽名 {}", index + 2)));
+                ui.painter().rect_filled(rect, CornerRadius::same(4), Color32::WHITE);
+                ui.painter().rect_stroke(rect, CornerRadius::same(4), Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
+                if let Some(cache) = app.signature_library_previews.get_mut(index) {
+                    paint_saved(ui, rect.shrink(8.0), saved, cache, &format!("library-{index}"));
+                }
+                if response.clicked() {
+                    selected = Some(index);
+                }
+                if crate::icons::button(ui, "x", 26.0, false, "刪除此簽名").clicked() {
+                    removed = Some(index);
+                }
+            });
+        });
+    }
+    if let Some(index) = removed.filter(|i| *i < app.signature_library.len()) {
+        app.signature_library.remove(index);
+        app.persist_signature_changes();
+    } else if let Some(index) = selected {
+        let mut promoted = false;
+        if let Some(saved) = app.signature_library.get_mut(index) {
+            let chosen = saved.clone();
+            if let Some(previous) = app.signature.replace(chosen) {
+                *saved = previous;
+            } else {
+                promoted = true;
+            }
+        }
+        if promoted {
+            app.signature_library.remove(index);
+        }
+        command = Some("sign.fill.signature");
+        app.persist_signature_changes();
+    }
+    if app.signature.is_some() {
+        ui.add_space(6.0);
+        let count = app.signature_library.len() + 1;
+        ui.label(format!("已保存 {count} / 10 個簽名（此瀏覽器）"));
+        if ui.add_enabled(count < 10, egui::Button::new("＋ 新增簽名")).clicked() {
+            app.signature_draft = SigDraft::new(false, &app.comment_prefs.author);
+            app.dialog = Some(crate::Dialog::Signature);
+        }
+    }
     command
 }
 

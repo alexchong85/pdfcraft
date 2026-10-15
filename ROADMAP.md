@@ -447,3 +447,5 @@ Newest first: the date, what moved, and the new overall estimate.
 | 2026-10-05 | major | Honest assessment and "Where we're lacking" added |
 
 - **2026-10-12 (M8):** Redaction cleans indirect and form structure references, preserving surviving form tags.
+
+2026-10-15: Alex OS custom fork adds a browser-local library of up to ten Fill & Sign signatures, card selection/removal, immediate persistence and storage-failure feedback. Initials remain independent; upstream parity scores unchanged.
