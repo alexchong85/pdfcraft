@@ -29,3 +29,7 @@ The added fallback is for the interface. This customization does not change the 
 ## Multiple browser signatures
 
 The selected signature remains in the legacy setting; up to nine additional signatures live in `signature_library`. Selecting a card swaps it with the current signature. Creating a signature preserves the previous one, editing replaces only the current one, and removing it promotes another saved signature. Initials retain their existing independent slot. Old settings remain readable; restore reads at most nine additional entries. Browser signature changes save immediately to the existing local-only settings key and report unavailable/full storage. The website account does not receive the signature library.
+
+## Account-hosted signatures
+
+`?host=parent&signatures=account` activates a same-origin account bridge. The host sends `pdfcraft:signatures` with a JSON string `state` containing only `signature`, `library`, and `initials`. Each signature mutation emits `pdfcraft:signatures-changed` with the same schema. Loading host data does not echo a save. The document, theme and other preferences are unchanged. Account mode clears inherited local signatures and excludes account signatures from normal browser preference persistence. The host owns authenticated storage, migration, save errors and optimistic concurrency; the editor itself does not make network requests for signatures. Standalone browser use retains local persistence.

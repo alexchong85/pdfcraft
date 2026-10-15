@@ -72,7 +72,11 @@ fn main() {
                         {
                             app.comment_prefs.author = author.chars().take(200).collect();
                         }
-                        bridge.listen(app.startup_inbox.clone(), app.host_theme_inbox.clone(), cc.egui_ctx.clone());
+                        if query_param("signatures").as_deref() == Some("account") {
+                            app.set_account_signatures(Default::default());
+                            app.host_signatures_changed = Some(bridge.signatures_fn());
+                        }
+                        bridge.listen(app.startup_inbox.clone(), app.host_theme_inbox.clone(), app.host_signature_inbox.clone(), cc.egui_ctx.clone());
                         app.host_save = Some(bridge.save_fn());
                         app.host_dirty = Some(bridge.dirty_fn());
                         app.host_theme_changed = Some(bridge.theme_fn());
@@ -197,6 +201,7 @@ mod host {
             &self,
             inbox: pdfcraft_ui_egui::Inbox,
             theme: std::sync::Arc<std::sync::Mutex<Option<pdfcraft_ui_egui::theme::ThemePreference>>>,
+            signatures: std::sync::Arc<std::sync::Mutex<Option<pdfcraft_ui_egui::fill_sign::SignatureCollection>>>,
             ctx: egui::Context,
         ) {
             let parent = self.parent.clone();
@@ -206,6 +211,18 @@ mod host {
                     return;
                 }
                 let data = event.data();
+                if string(&data, "type").as_deref() == Some("pdfcraft:signatures") {
+                    if let Some(json) = string(&data, "state").filter(|s| s.len() <= 3_000_000)
+                        && let Ok(state) = serde_json::from_str::<pdfcraft_ui_egui::fill_sign::SignatureCollection>(&json)
+                        && state.valid()
+                    {
+                        if let Ok(mut pending) = signatures.lock() {
+                            *pending = Some(state);
+                        }
+                        ctx.request_repaint();
+                    }
+                    return;
+                }
                 if string(&data, "type").as_deref() == Some("pdfcraft:theme") {
                     if let Some(preference) = super::host_theme(string(&data, "theme").as_deref()) {
                         if let Ok(mut pending) = theme.lock() {
@@ -270,6 +287,15 @@ mod host {
                     pdfcraft_ui_egui::theme::ThemeKind::Dark => "yakan",
                 };
                 if let Some(m) = message(&[("type", "pdfcraft:theme-changed".into()), ("theme", value.into())]) {
+                    let _ = bridge.post(&m, None);
+                }
+            })
+        }
+
+        pub fn signatures_fn(&self) -> Box<dyn Fn(String)> {
+            let bridge = self.clone();
+            Box::new(move |state| {
+                if let Some(m) = message(&[("type", "pdfcraft:signatures-changed".into()), ("state", state.into())]) {
                     let _ = bridge.post(&m, None);
                 }
             })

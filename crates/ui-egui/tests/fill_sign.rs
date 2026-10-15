@@ -1544,3 +1544,34 @@ fn signature_library_add_select_and_cancel() {
     restored.restore(&h.state().persist());
     assert!(restored.signature_library.is_empty());
 }
+
+#[test]
+fn account_bridge_keeps_signatures_out_of_browser_preferences() {
+    use pdfcraft_ui_egui::fill_sign::SignatureCollection;
+    let changes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let captured = changes.clone();
+    let mut app = PdfCraftApp::new();
+    app.host_signatures_changed = Some(Box::new(move |json| captured.lock().unwrap().push(json)));
+    app.set_account_signatures(SignatureCollection {
+        signature: Some(SavedSig::Typed("Account Alpha".into())),
+        library: vec![SavedSig::Typed("Account Beta".into())],
+        initials: Some(SavedSig::Typed("AB".into())),
+    });
+    assert!(changes.lock().unwrap().is_empty(), "account reads do not echo writes");
+    let preferences = app.persist();
+    assert!(!preferences.contains("Account Alpha"));
+    assert!(!preferences.contains("Account Beta"));
+    let persisted: serde_json::Value = serde_json::from_str(&preferences).unwrap();
+    assert!(persisted["signature_text"].is_null());
+    assert_eq!(persisted["signature_library"], serde_json::json!([]));
+    app.execute("sign.fill.signature.remove");
+    let sent: SignatureCollection = serde_json::from_str(&changes.lock().unwrap()[0]).unwrap();
+    assert_eq!(sent.signature, Some(SavedSig::Typed("Account Beta".into())));
+    assert!(sent.library.is_empty());
+    let before = app.signature.clone();
+    app.set_account_signatures(SignatureCollection {
+        signature: Some(SavedSig::Drawn(vec![vec![[f32::NAN, 0.0], [1.0, 1.0]]])),
+        ..Default::default()
+    });
+    assert_eq!(app.signature, before, "invalid inbound data leaves the account state intact");
+}

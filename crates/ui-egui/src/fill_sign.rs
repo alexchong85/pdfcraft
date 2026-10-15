@@ -35,6 +35,31 @@ pub enum SavedSig {
     Image(#[serde(with = "image_data")] SignatureImage),
 }
 
+/// Only signature data crosses the account bridge; documents and app preferences stay local.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SignatureCollection {
+    pub signature: Option<SavedSig>,
+    pub library: Vec<SavedSig>,
+    pub initials: Option<SavedSig>,
+}
+
+impl SignatureCollection {
+    pub fn valid(&self) -> bool {
+        self.library.len() <= 9
+            && self.library.len() + usize::from(self.signature.is_some()) <= 10
+            && self.library.iter().chain(self.signature.iter()).chain(self.initials.iter()).all(|sig| match sig {
+                SavedSig::Typed(text) => !text.trim().is_empty() && text.chars().count() <= 512,
+                SavedSig::Drawn(strokes) => {
+                    strokes.len() <= 1000
+                        && strokes.iter().map(Vec::len).sum::<usize>() <= 100_000
+                        && strokes.iter().any(|s| s.len() > 1)
+                        && strokes.iter().flatten().flatten().all(|p| p.is_finite() && p.abs() <= 10_000.0)
+                }
+                SavedSig::Image(_) => true,
+            })
+    }
+}
+
 impl SavedSig {
     /// This signature as the graphic of a visible digital signature. `None` for typed text the
     /// script font has nothing to draw for.
@@ -593,7 +618,8 @@ pub(crate) fn signature_entries(ui: &mut egui::Ui, app: &mut crate::PdfCraftApp,
     if app.signature.is_some() {
         ui.add_space(6.0);
         let count = app.signature_library.len() + 1;
-        ui.label(format!("已保存 {count} / 10 個簽名（此瀏覽器）"));
+        let location = if app.host_signatures_changed.is_some() { "帳戶清單" } else { "此瀏覽器" };
+        ui.label(format!("已保存 {count} / 10 個簽名（{location}）"));
         if ui.add_enabled(count < 10, egui::Button::new("＋ 新增簽名")).clicked() {
             app.signature_draft = SigDraft::new(false, &app.comment_prefs.author);
             app.dialog = Some(crate::Dialog::Signature);

@@ -756,6 +756,8 @@ pub struct PdfCraftApp {
     pub signature: Option<fill_sign::SavedSig>,
     /// Additional saved signatures, excluding the currently selected signature (ten total).
     pub signature_library: Vec<fill_sign::SavedSig>,
+    pub host_signature_inbox: std::sync::Arc<std::sync::Mutex<Option<fill_sign::SignatureCollection>>>,
+    pub host_signatures_changed: Option<Box<dyn Fn(String)>>,
     pub(crate) signature_library_previews: Vec<Option<(fill_sign::SavedSig, egui::TextureHandle)>>,
     pub initials: Option<fill_sign::SavedSig>,
     /// The Create signature / initials dialog, and its typed preview.
@@ -1029,6 +1031,8 @@ impl PdfCraftApp {
             export_status: None,
             signature: None,
             signature_library: Vec::new(),
+            host_signature_inbox: Default::default(),
+            host_signatures_changed: None,
             signature_library_previews: Vec::new(),
             initials: None,
             signature_draft: Default::default(),
@@ -2174,20 +2178,47 @@ impl PdfCraftApp {
             "right_panel_closed": self.right_panel_closed,
         });
         state["signature_library"] = serde_json::json!(self.signature_library);
+        if self.host_signatures_changed.is_some() {
+            for key in ["signature", "signature_text", "signature_image", "initials"] {
+                state[key] = serde_json::Value::Null;
+            }
+            state["signature_library"] = serde_json::json!([]);
+        }
         state.to_string()
     }
 
     /// Save signature changes immediately, including before a browser refresh.
     pub(crate) fn persist_signature_changes(&mut self) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let saved = web_sys::window()
-                .and_then(|w| w.local_storage().ok().flatten())
-                .is_some_and(|storage| storage.set_item("pdfcraft", &self.persist()).is_ok());
-            if !saved {
-                self.notify("無法保存簽名：瀏覽器儲存空間不足或已停用，重新整理後可能遺失。請減少圖片大小或刪除不用的簽名。");
+        if let Some(changed) = &self.host_signatures_changed {
+            let state = fill_sign::SignatureCollection {
+                signature: self.signature.clone(),
+                library: self.signature_library.clone(),
+                initials: self.initials.clone(),
+            };
+            if let Ok(json) = serde_json::to_string(&state) {
+                changed(json);
+            }
+        } else {
+            #[cfg(target_arch = "wasm32")]
+            {
+                let saved = web_sys::window()
+                    .and_then(|w| w.local_storage().ok().flatten())
+                    .is_some_and(|storage| storage.set_item("pdfcraft", &self.persist()).is_ok());
+                if !saved {
+                    self.notify("無法保存簽名：瀏覽器儲存空間不足或已停用，重新整理後可能遺失。請減少圖片大小或刪除不用的簽名。");
+                }
             }
         }
+    }
+
+    pub fn set_account_signatures(&mut self, state: fill_sign::SignatureCollection) {
+        if !state.valid() {
+            return;
+        }
+        self.signature = state.signature;
+        self.signature_library = state.library;
+        self.initials = state.initials;
+        self.signature_library_previews.clear();
     }
 
     /// Restore state written by `persist`. Unknown or malformed data is ignored.
@@ -2804,6 +2835,10 @@ impl eframe::App for PdfCraftApp {
         let host_theme = self.host_theme_inbox.lock().ok().and_then(|mut pending| pending.take());
         if let Some(preference) = host_theme {
             self.set_theme_preference(preference);
+        }
+        let signatures = self.host_signature_inbox.lock().ok().and_then(|mut pending| pending.take());
+        if let Some(state) = signatures {
+            self.set_account_signatures(state);
         }
         self.dialog_epoch();
         // Notices raised outside `ui` (opened files, OS events, the control channel) translate too.
