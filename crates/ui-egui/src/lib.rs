@@ -2827,7 +2827,9 @@ impl eframe::App for PdfCraftApp {
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        storage.set_string("pdfcraft", self.persist());
+        // Keep the old local library until the host has explicitly imported it successfully.
+        let key = if self.host_signatures_changed.is_some() { "pdfcraft-account-preferences" } else { "pdfcraft" };
+        storage.set_string(key, self.persist());
     }
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

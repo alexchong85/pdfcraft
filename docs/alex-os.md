@@ -33,3 +33,5 @@ The selected signature remains in the legacy setting; up to nine additional sign
 ## Account-hosted signatures
 
 `?host=parent&signatures=account` activates a same-origin account bridge. The host sends `pdfcraft:signatures` with a JSON string `state` containing only `signature`, `library`, and `initials`. Each signature mutation emits `pdfcraft:signatures-changed` with the same schema. Loading host data does not echo a save. The document, theme and other preferences are unchanged. Account mode clears inherited local signatures and excludes account signatures from normal browser preference persistence. The host owns authenticated storage, migration, save errors and optimistic concurrency; the editor itself does not make network requests for signatures. Standalone browser use retains local persistence.
+
+Account preferences use the separate pdfcraft-account-preferences key, with signatures omitted. The original pdfcraft key remains intact until the host confirms a successful explicit import, including when a legacy library is too large for an account upload.

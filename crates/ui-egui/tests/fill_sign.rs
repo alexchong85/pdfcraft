@@ -1575,3 +1575,30 @@ fn account_bridge_keeps_signatures_out_of_browser_preferences() {
     });
     assert_eq!(app.signature, before, "invalid inbound data leaves the account state intact");
 }
+
+#[test]
+fn account_autosave_preserves_unimported_local_signatures() {
+    #[derive(Default)]
+    struct Memory(std::collections::HashMap<String, String>);
+    impl eframe::Storage for Memory {
+        fn get_string(&self, key: &str) -> Option<String> {
+            self.0.get(key).cloned()
+        }
+        fn set_string(&mut self, key: &str, value: String) {
+            self.0.insert(key.into(), value);
+        }
+        fn remove_string(&mut self, key: &str) {
+            self.0.remove(key);
+        }
+        fn flush(&mut self) {}
+    }
+    let mut storage = Memory::default();
+    let legacy = r#"{"signature_text":"Unimported local"}"#;
+    storage.0.insert("pdfcraft".into(), legacy.into());
+    let mut app = PdfCraftApp::new();
+    app.signature = Some(SavedSig::Typed("Private cloud".into()));
+    app.host_signatures_changed = Some(Box::new(|_| {}));
+    eframe::App::save(&mut app, &mut storage);
+    assert_eq!(storage.0.get("pdfcraft").unwrap(), legacy);
+    assert!(!storage.0.get("pdfcraft-account-preferences").unwrap().contains("Private cloud"));
+}
